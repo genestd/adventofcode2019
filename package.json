@@ -1,0 +1,19 @@
+{
+  "name": "adventofcode2019",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/genestd/adventofcode2019.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/genestd/adventofcode2019/issues"
+  },
+  "homepage": "https://github.com/genestd/adventofcode2019#readme"
+}
