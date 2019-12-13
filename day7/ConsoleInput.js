@@ -18,7 +18,6 @@ function ConsoleInput() {
     }
 
     this.close = () => {
-        console.log('closing input')
         this.device.close()
     }
 }
