@@ -8,6 +8,8 @@ function Computer(program, input, output) {
     this.program = program
     if (input && Array.isArray(input)) {
         this.input = new ArrayInput(input)
+    } else if (input) {
+        this.input = input
     } else {
         this.input = new ConsoleInput()
     }
