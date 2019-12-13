@@ -13,51 +13,81 @@ module.exports = {
             param3Type
         }
     },
-    interpretParamType: (paramNum, paramType, index, program) => {
-        return paramType === 0 ? program[program[index+paramNum]] : program[index+paramNum]
+    interpretParamType: (paramNum, paramType, index, program, relativeBase) => {
+        let newIndex
+        switch (paramType) {
+            //val.param1Type === 0 ? newProgram[newProgram[Number(index+1)]] : 
+            //val.param1Type === 1 ? newProgram[Number(index+1)] :
+            //newProgram[(newProgram[Number(index+1)] + Number(getRelativeBase()))]
+            case 0: {
+                newIndex = program[Number(index)+Number(paramNum)]
+                if (newIndex >= program.length)
+                    program[newIndex] = 0
+                return BigInt(newIndex || 0)
+            }
+            case 1: {
+                newIndex = BigInt(Number(index)+Number(paramNum) || 0)
+                return newIndex
+            }
+            case 2: {
+                newIndex = program[Number(index)+Number(paramNum)]
+                return BigInt(newIndex+Number(relativeBase) || 0)
+                //console.log('HERE', param, relativeBase, Number(param+relativeBase))
+                if (newIndex >= program.length)
+                    program[newIndex] = 0
+                return BigInt(program[newIndex] || 0)
+            }
+            default:
+                return 0
+        }
+        
     },
-    performOp: async (index, program, input, output, save) => {
+    performOp: async (index, program, input, output, save, getRelativeBase, setRelativeBase) => {
         const newProgram = [...program]
+
         const val = module.exports.parseOpCode(newProgram[index])
         //console.log('handling next op: ', val)
         if (val.opCode === 1) {
             const operation = {
                 opCode: val.opCode,
-                pos1: module.exports.interpretParamType(1, val.param1Type, index, newProgram),
-                pos2: module.exports.interpretParamType(2, val.param2Type, index, newProgram),
-                outPos: newProgram[index+3],
-                nextIndex: index+4,
+                param1: module.exports.interpretParamType(1, val.param1Type, index, newProgram, getRelativeBase()),
+                param2: module.exports.interpretParamType(2, val.param2Type, index, newProgram, getRelativeBase()),
+                param3: module.exports.interpretParamType(3, val.param3Type, index, newProgram, getRelativeBase()),
+                nextIndex: Number(index)+4,
                 done: false
             }
-            //console.log(`Op1 adds ${operation.pos1} and ${operation.pos2} and saves to ${operation.outPos}` )
-            newProgram[operation.outPos] = Number(operation.pos1) + Number(operation.pos2)
+            //console.log(`Op1 adds ${operation.param1} and ${operation.param2} and saves to ${operation.param3}` )
+            newProgram[operation.param3] = program[(operation.param1)] + program[(operation.param2)]
             
             return { operation, program: newProgram }
         }
         if (val.opCode === 2) {
             const operation = {
                 opCode: val.opCode,
-                pos1: module.exports.interpretParamType(1, val.param1Type, index, newProgram),
-                pos2: module.exports.interpretParamType(2, val.param2Type, index, newProgram),
-                outPos: newProgram[index+3],
-                nextIndex: index+4,
+                param1: module.exports.interpretParamType(1, val.param1Type, index, newProgram, getRelativeBase()),
+                param2: module.exports.interpretParamType(2, val.param2Type, index, newProgram, getRelativeBase()),
+                param3: module.exports.interpretParamType(3, val.param3Type, index, newProgram, getRelativeBase()),
+                nextIndex: Number(index)+4,
                 done: false
             }
             //console.log('handling op1', operation)
-            newProgram[operation.outPos] = Number(operation.pos1) * Number(operation.pos2)
+            newProgram[operation.param3] = program[(operation.param1)] * program[(operation.param2)]
             return { operation, program: newProgram }
         }
         if (val.opCode === 3) {
             try {
                 const answer = await input.getInput()
+                console.log('answer', answer)
                 const operation = {
                     opCode: val.opCode,
-                    pos1: newProgram[index+1],
+                    param1: module.exports.interpretParamType(1, val.param1Type, index, newProgram, getRelativeBase()),
+                    //val.param1Type !== 2 ? newProgram[Number(index+1)] : newProgram[Number(index+1)] + Number(getRelativeBase()),
+
                     nextIndex: index + 2,
                     done: false
                 }
-                newProgram[operation.pos1] = answer
-                //console.log('>>>>answer', answer, newProgram[operation.pos1])
+                newProgram[operation.param1] = answer
+                //console.log('>>>>answer', answer, newProgram[operation.param1])
                 return { operation, program: newProgram }
             } catch(error) {
                 console.log(error)
@@ -67,19 +97,20 @@ module.exports = {
             try {
                 const operation = {
                     opCode: val.opCode,
-                    pos1: newProgram[index+1],
-                    nextIndex: index + 2,
+                    param1: module.exports.interpretParamType(1, val.param1Type, index, newProgram, getRelativeBase()),
+                    //val.param1Type === 0 ? newProgram[Number(index+1)] : val.param1Type === 1 ? Number(index+1) :  program[Number(index+1)] + Number(getRelativeBase()),
+                    nextIndex: Number(index) + 2,
                     done: false
                 }
                 if (output) {
                     if (typeof output === 'function')
-                        output(newProgram[operation.pos1])
+                        output(newProgram[operation.param1])
                     else
-                        output.value = newProgram[operation.pos1]
+                        output.value = newProgram[operation.param1]
                 }
-                console.log("OUTPUT", newProgram[operation.pos1])
+                console.log("OUTPUT", newProgram[operation.param1])
     
-                save(newProgram[operation.pos1])
+                save(operation.param1)
                 return { operation, output, program: newProgram }
             } catch(error) {
                 console.log(`opcode 4 error: `, error)
@@ -91,54 +122,67 @@ module.exports = {
         if (val.opCode === 5) {
             const operation = {
                 opCode: val.opCode,
-                pos1: module.exports.interpretParamType(1, val.param1Type, index, newProgram),
-                pos2: module.exports.interpretParamType(2, val.param2Type, index, newProgram),
-                outPos: null,
-                nextIndex: index+3,
+                param1: module.exports.interpretParamType(1, val.param1Type, index, newProgram, getRelativeBase()),
+                param2: module.exports.interpretParamType(2, val.param2Type, index, newProgram, getRelativeBase()),
+                nextIndex: Number(index)+3,
                 done: false
             }
-            if (operation.pos1 !== 0)
-                operation.nextIndex = operation.pos2
+            if (newProgram[operation.param1] !== 0 && newProgram[operation.param1] !== 0n)
+                operation.nextIndex = newProgram[operation.param2]
             return { operation, program: newProgram }
         }
     
         if (val.opCode === 6) {
             const operation = {
                 opCode: val.opCode,
-                pos1: module.exports.interpretParamType(1, val.param1Type, index, newProgram),
-                pos2: module.exports.interpretParamType(2, val.param2Type, index, newProgram),
-                outPos: null,
-                nextIndex: index+3,
+                param1: module.exports.interpretParamType(1, val.param1Type, index, newProgram, getRelativeBase()),
+                param2: module.exports.interpretParamType(2, val.param2Type, index, newProgram, getRelativeBase()),
+                nextIndex: Number(index)+3,
                 done: false
             }
-            if (operation.pos1 === 0)
-                operation.nextIndex = operation.pos2
+            if (newProgram[operation.param1] === 0 || newProgram[operation.param1] === 0n)
+                operation.nextIndex = newProgram[operation.param2]
             return { operation, program: newProgram }
         }
-    
+        // check first param < second param, put result in 3rd param
         if (val.opCode === 7) {
             const operation = {
                 opCode: val.opCode,
-                pos1: module.exports.interpretParamType(1, val.param1Type, index, newProgram),
-                pos2: module.exports.interpretParamType(2, val.param2Type, index, newProgram),
-                outPos: newProgram[index+3],
-                nextIndex: index+4,
+                param1: module.exports.interpretParamType(1, val.param1Type, index, newProgram, getRelativeBase()),
+                param2: module.exports.interpretParamType(2, val.param2Type, index, newProgram, getRelativeBase()),
+                param3: module.exports.interpretParamType(3, val.param3Type, index, newProgram, getRelativeBase()),
+                //param3: val.param3Type !== 2 ? newProgram[Number(index+3)] : newProgram[Number(index+3)] + Number(getRelativeBase()),
+                nextIndex: Number(index)+4,
                 done: false
             }
-            newProgram[operation.outPos] = (operation.pos1 < operation.pos2) ? 1 : 0
+            newProgram[operation.param3] = (newProgram[operation.param1] < newProgram[operation.param2]) ? 1 : 0
             return { operation, program: newProgram }
         }
     
+        // Check equality of params; update output position with 1 for equal
         if (val.opCode === 8) {
             const operation = {
                 opCode: val.opCode,
-                pos1: module.exports.interpretParamType(1, val.param1Type, index, newProgram),
-                pos2: module.exports.interpretParamType(2, val.param2Type, index, newProgram),
-                outPos: newProgram[index+3],
-                nextIndex: index+4,
+                param1: module.exports.interpretParamType(1, val.param1Type, index, newProgram, getRelativeBase()),
+                param2: module.exports.interpretParamType(2, val.param2Type, index, newProgram, getRelativeBase()),
+                param3: module.exports.interpretParamType(3, val.param3Type, index, newProgram, getRelativeBase()),
+                //param3: val.param3Type !== 2 ? newProgram[Number(index+3)] : newProgram[Number(index+3)] + Number(getRelativeBase()),
+                nextIndex: Number(index)+4,
                 done: false
             }
-            newProgram[operation.outPos] = (operation.pos1 === operation.pos2) ? 1 : 0
+            newProgram[operation.param3] = (newProgram[operation.param1] === newProgram[operation.param2]) ? 1 : 0
+            return { operation, program: newProgram }
+        }
+        // Adjust Relative Base
+        if (val.opCode === 9) {
+            const operation = {
+                opCode: val.opCode,
+                param1: module.exports.interpretParamType(1, val.param1Type, index, newProgram, getRelativeBase()),
+                //param1: val.param1Type === 0 ? newProgram[newProgram[Number(index+1)]] : val.param1Type === 1 ? newProgram[Number(index+1)] : newProgram[(newProgram[Number(index+1)] + Number(getRelativeBase()))],
+                nextIndex: Number(index)+2,
+                done: false
+            }
+            setRelativeBase(program[operation.param1])
             return { operation, program: newProgram }
         }
     
@@ -151,6 +195,6 @@ module.exports = {
             }
         }
             
-        console.log('ERROR, invalid op code', val)
+        console.log('ERROR, invalid op code at index', index, val)
     }
 }
