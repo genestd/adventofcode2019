@@ -77,7 +77,7 @@ module.exports = {
         if (val.opCode === 3) {
             try {
                 const answer = await input.getInput()
-                console.log('answer', answer)
+                //console.log('answer', answer)
                 const operation = {
                     opCode: val.opCode,
                     param1: module.exports.interpretParamType(1, val.param1Type, index, newProgram, getRelativeBase()),
@@ -108,7 +108,7 @@ module.exports = {
                     else
                         output.value = newProgram[operation.param1]
                 }
-                console.log("OUTPUT", newProgram[operation.param1])
+                //console.log("OUTPUT", newProgram[operation.param1])
     
                 save(operation.param1)
                 return { operation, output, program: newProgram }
